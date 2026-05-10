@@ -47,9 +47,9 @@ function [mae_val, eta_val, rmse_attack_m] = run_mc(epsilon_vals_in, Delta_f_in,
             MTP_DP = max(0, min(P_max_in, MTP_noisy_unclipped));
 
             % محاسبه راندمان (eta) بر اساس آستانه منطقی
-           margin_dB = 0.5; % این مقدار را می‌توانید برای تنظیم دقیق η تغییر دهید
-connected_DP = MTP_DP >= (MTP_true - margin_dB);
-eta_runs(r) = sum(connected_DP) / length(MTP_true);
+            margin_dB = 0.5; % این مقدار را می‌توانید برای تنظیم دقیق η تغییر دهید
+            connected_DP = MTP_DP >= (MTP_true - margin_dB);
+            eta_runs(r) = sum(connected_DP) / length(MTP_true);
 
             % محاسبه خطای مکانی مهاجم (RMSE مکانی به متر)
             d_est = -gamma_val * log(max(MTP_DP, eps_power) / P_max_in);
