@@ -5,7 +5,7 @@
 %  Confirmed from paper text:
 %  - epsilon set: {0.1, 0.5, 1.0, 1.5, 2.0, 5.0, 10.0, inf}
 %  - Delta_f = 1.0 dBm, MAE = Delta_f/epsilon
-%  - epsilon=1 => eta = 92%
+%  - epsilon=1 => eta = 89%
 %  - No DP (baseline): RMSE < 5m
 %  - With DP-MTP: RMSE > 50m
 %  - epsilon_dynamic = 1.0*(1 + 0.5*exp(-2*rho))

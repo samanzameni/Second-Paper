@@ -11,7 +11,7 @@ function [rmse_lo_m, rmse_kanon_m, rmse_cr_m, rmse_base_m, mae_lo, mae_kanon, ma
     mae_lo_r     = zeros(num_runs,1);
     mae_kanon_r  = zeros(num_runs,1);
     mae_cr_r     = zeros(num_runs,1);
-
+    margin_dB      = 0.5;
     eta_lo_r     = zeros(num_runs,1);
     eta_kanon_r  = zeros(num_runs,1);
     eta_cr_r     = zeros(num_runs,1);
@@ -61,8 +61,7 @@ function [rmse_lo_m, rmse_kanon_m, rmse_cr_m, rmse_base_m, mae_lo, mae_kanon, ma
         d_est_lo = -gamma_val * log(max(MTP_lo_clipped, eps_power) / P_max);
         rmse_lo_r(r) = sqrt(mean((d_est_lo - dists_true_min).^2));
         mae_lo_r(r)  = mean(abs(MTP_lo_clipped - MTP_true));
-        eta_lo_r(r)  = sum(MTP_lo_clipped >= P_th) / num_connected_true;
-
+        eta_lo_r(r) = sum(MTP_lo_clipped >= (MTP_true - margin_dB)) / length(MTP_true);
         % 3. K-Anonymity
         dists_su = pdist2(su_locs, su_locs);
         dists_su(logical(eye(N_SU))) = inf;
@@ -76,8 +75,7 @@ function [rmse_lo_m, rmse_kanon_m, rmse_cr_m, rmse_base_m, mae_lo, mae_kanon, ma
         d_est_kanon = -gamma_val * log(max(MTP_kanon_clipped, eps_power) / P_max);
         rmse_kanon_r(r) = sqrt(mean((d_est_kanon - dists_true_min).^2));
         mae_kanon_r(r)  = mean(abs(MTP_kanon_clipped - MTP_true));
-        eta_kanon_r(r)  = sum(MTP_kanon_clipped >= P_th) / num_connected_true;
-
+        eta_kanon_r(r) = sum(MTP_kanon_clipped >= (MTP_true - margin_dB)) / length(MTP_true);
         % 4. Cloaking Regions
         cell_x = floor(su_locs(:,1) / cr_size);
         cell_y = floor(su_locs(:,2) / cr_size);
@@ -90,7 +88,7 @@ function [rmse_lo_m, rmse_kanon_m, rmse_cr_m, rmse_base_m, mae_lo, mae_kanon, ma
         d_est_cr = -gamma_val * log(max(MTP_cr_clipped, eps_power) / P_max);
         rmse_cr_r(r) = sqrt(mean((d_est_cr - dists_true_min).^2));
         mae_cr_r(r)  = mean(abs(MTP_cr_clipped - MTP_true));
-        eta_cr_r(r)  = sum(MTP_cr_clipped >= P_th) / num_connected_true;
+        eta_cr_r(r) = sum(MTP_cr_clipped >= (MTP_true - margin_dB)) / length(MTP_true);
     end
 
     rmse_lo_m    = mean(rmse_lo_r);
