@@ -33,130 +33,10 @@ epsilon_base  = 1.0;       % for adaptive DP
 alpha_adapt   = 0.5;       % from paper: epsilon_dynamic formula
 beta_adapt    = 2.0;       % from paper: epsilon_dynamic formula
 gamma         = 30;
+scale_eta     = 1.0;
 
 fprintf('=== DP-MTP Paper: All Figures ===\n');
 fprintf('Parameters loaded from Section 6.1\n\n');
-
-%% ============================================================
-%  HELPER: Single Monte Carlo run for given epsilon, Pmax, gamma_val
-%% ============================================================
-function [mae_val, eta_val, rmse_attack] = run_mc(epsilon_vals_in, Delta_f_in, ...N_SU, N_PU, P_max_in, area_size, num_runs, gamma_val)
-    n_eps = length(epsilon_vals_in);
-    mae_val      = zeros(1, n_eps);
-    eta_val      = zeros(1, n_eps);
-    rmse_attack  = zeros(1, n_eps);
-
-    for ei = 1:n_eps
-        eps = epsilon_vals_in(ei);
-        b   = Delta_f_in / eps;
-
-        mae_runs   = zeros(num_runs, 1);
-        eta_runs   = zeros(num_runs, 1);
-        rmse_runs  = zeros(num_runs, 1);
-
-        for r = 1:num_runs
-            su_locs = rand(N_SU, 2) * area_size;
-            pu_locs = rand(N_PU, 2) * area_size;
-
-            MTP_true = zeros(N_SU, 1);
-            for i = 1:N_SU
-                dists = sqrt(sum((su_locs(i,:) - pu_locs).^2, 2));
-                d = min(dists);
-                MTP_true(i) = P_max_in * exp(-d / gamma_val);
-            end
-
-            % Laplace noise
-            U = rand(N_SU, 1) - 0.5;
-            noise = -b * sign(U) .* log(1 - 2*abs(U));
-            MTP_DP = max(0, min(P_max_in, MTP_true + noise));
-
-            mae_runs(r)  = mean(abs(MTP_DP - MTP_true));
-            eta_runs(r)  = sum(MTP_DP > 0) / N_SU;
-
-            % Adversary RMSE: adversary tries to infer MTP_true from MTP_DP
-            % Best adversary estimate = MTP_DP (no denoising knowledge)
-            rmse_runs(r) = sqrt(mean((MTP_DP - MTP_true).^2));
-        end
-
-        mae_val(ei)     = mean(mae_runs);
-        eta_val(ei)     = mean(eta_runs);
-        rmse_attack(ei) = mean(rmse_runs);
-    end
-end
-
-%% ============================================================
-%  HELPER: Baseline mechanism simulations
-%% ============================================================
-function [rmse_lo, rmse_kanon, rmse_cr, rmse_base, mae_lo, mae_kanon, mae_cr] = ...
-        run_baselines(N_SU, N_PU, P_max, area_size, num_runs, gamma_val, Delta_f)
-
-    rmse_lo_r    = zeros(num_runs,1);
-    rmse_kanon_r = zeros(num_runs,1);
-    rmse_cr_r    = zeros(num_runs,1);
-    rmse_base_r  = zeros(num_runs,1);
-    mae_lo_r     = zeros(num_runs,1);
-    mae_kanon_r  = zeros(num_runs,1);
-    mae_cr_r     = zeros(num_runs,1);
-
-    sigma_lo  = 20;   % LO sigma=20m
-    k_anon    = 3;    % K-Anonymity k=3
-    cr_size   = 100;  % Cloaking region 100m
-
-    for r = 1:num_runs
-        su_locs = rand(N_SU, 2) * area_size;
-        pu_locs = rand(N_PU, 2) * area_size;
-
-        MTP_true = zeros(N_SU, 1);
-        for i = 1:N_SU
-            dists = sqrt(sum((su_locs(i,:) - pu_locs).^2, 2));
-            MTP_true(i) = P_max * exp(-min(dists) / gamma_val);
-        end
-
-        % No protection: adversary sees exact MTP
-        rmse_base_r(r) = 0;  % perfect knowledge => RMSE=0 for adversary
-
-        % LO: add Gaussian noise to SU locations, recompute MTP
-        su_locs_lo = su_locs + sigma_lo * randn(N_SU, 2);
-        MTP_lo = zeros(N_SU, 1);
-        for i = 1:N_SU
-            dists = sqrt(sum((su_locs_lo(i,:) - pu_locs).^2, 2));
-            MTP_lo(i) = P_max * exp(-min(dists) / gamma_val);
-        end
-        rmse_lo_r(r) = sqrt(mean((MTP_lo - MTP_true).^2));
-        mae_lo_r(r)  = mean(abs(MTP_lo - MTP_true));
-
-        % K-Anonymity: replace each SU's MTP with mean of k nearest SUs
-        dists_su = pdist2(su_locs, su_locs);
-        dists_su(logical(eye(N_SU))) = inf;
-        MTP_kanon = zeros(N_SU, 1);
-        for i = 1:N_SU
-            [~, idx_k] = sort(dists_su(i,:));
-            neighbors = idx_k(1:k_anon-1);
-            MTP_kanon(i) = mean(MTP_true([i; neighbors']));
-        end
-        rmse_kanon_r(r) = sqrt(mean((MTP_kanon - MTP_true).^2));
-        mae_kanon_r(r)  = mean(abs(MTP_kanon - MTP_true));
-
-        % Cloaking Regions: replace MTP with mean of SUs in same grid cell
-        cell_x = floor(su_locs(:,1) / cr_size);
-        cell_y = floor(su_locs(:,2) / cr_size);
-        MTP_cr = zeros(N_SU, 1);
-        for i = 1:N_SU
-            same_cell = (cell_x == cell_x(i)) & (cell_y == cell_y(i));
-            MTP_cr(i) = mean(MTP_true(same_cell));
-        end
-        rmse_cr_r(r) = sqrt(mean((MTP_cr - MTP_true).^2));
-        mae_cr_r(r)  = mean(abs(MTP_cr - MTP_true));
-    end
-
-    rmse_lo    = mean(rmse_lo_r);
-    rmse_kanon = mean(rmse_kanon_r);
-    rmse_cr    = mean(rmse_cr_r);
-    rmse_base  = mean(rmse_base_r);  % ~0: adversary has full info
-    mae_lo     = mean(mae_lo_r);
-    mae_kanon  = mean(mae_kanon_r);
-    mae_cr     = mean(mae_cr_r);
-end
 
 %% ============================================================
 %  PRE-COMPUTE: MAE, eta, RMSE for all epsilon values
@@ -164,43 +44,43 @@ end
 MAE_theoretical = Delta_f ./ epsilon_vals;
 
 fprintf('Running main Monte Carlo simulations...\n');
-[MAE_simulated, eta_simulated, RMSE_DPMTP] = run_mc(epsilon_vals, Delta_f, ...
-    N_SU, N_PU, P_max, area_size, num_runs, gamma);
+[MAE_simulated, eta_simulated, RMSE_DPMTP] = run_mc(epsilon_vals, Delta_f, N_SU, N_PU, P_max, area_size, num_runs, gamma);
 
-% Calibrate eta to paper value: epsilon=1 => eta=92%
-idx1      = find(epsilon_vals == 1.0);
-scale_eta = 0.92 / eta_simulated(idx1);
-eta_cal   = eta_simulated * scale_eta * 100;  % percent
+% استفاده از مقادیر واقعی شبیه‌سازی بدون دستکاری دستی (Hardcode)
+eta_cal = eta_simulated * 100;  % درصد واقعی از شبیه‌سازی
+idx1    = find(epsilon_vals == 1.0);
 
-% Convert RMSE from dBm domain to meters equivalent
-% RMSE_DPMTP is in dBm; scale to meters using path-loss inversion
-% d = -gamma * log(MTP/Pmax) => delta_d = gamma * delta_MTP / MTP
-% Use mean MTP at epsilon=1 as reference
-mean_MTP_ref = P_max * exp(-area_size/4 / gamma);  % rough mean distance ~area/4
-RMSE_DPMTP_m = RMSE_DPMTP * gamma ./ mean_MTP_ref;  % convert to meters
-
-% Ensure paper constraints: no-DP RMSE<5m, DP-MTP RMSE>50m
-% Scale so that RMSE at eps=1 maps to paper range
-scale_rmse = 55 / RMSE_DPMTP_m(idx1);
-RMSE_DPMTP_m = RMSE_DPMTP_m * scale_rmse;
+% تبدیل RMSE به متر بر اساس مدل Path-loss
+mean_MTP_ref = P_max * exp(-area_size/4 / gamma);
+RMSE_DPMTP_m = RMSE_DPMTP * gamma ./ mean_MTP_ref;
 
 fprintf('Running baseline simulations...\n');
-[rmse_lo_m, rmse_kanon_m, rmse_cr_m, ~, mae_lo, mae_kanon, mae_cr] = ...
+% خروجی‌ها ابتدا به صورت خام (توان) دریافت می‌شوند
+[rmse_lo_raw, rmse_kanon_raw, rmse_cr_raw, rmse_base_raw, mae_lo, mae_kanon, mae_cr, eta_lo_raw, eta_kanon_raw, eta_cr_raw] = ...
     run_baselines(N_SU, N_PU, P_max, area_size, num_runs, gamma, Delta_f);
 
-% No-protection: adversary RMSE ~ 0 (has full info), set to small value
-RMSE_base_val = 0.5;  % near-zero, adversary has perfect knowledge
+% تبدیل خطای توان روش‌های پایه به خطای مکانی (متر)
+rmse_lo_m    = rmse_lo_raw    * gamma / mean_MTP_ref;
+rmse_kanon_m = rmse_kanon_raw * gamma / mean_MTP_ref;
+rmse_cr_m    = rmse_cr_raw    * gamma / mean_MTP_ref;
+rmse_base_m  = rmse_base_raw  * gamma / mean_MTP_ref;
 
-% Replicate baselines across epsilon axis (they don't depend on epsilon)
+eta_lo    = eta_lo_raw * 100;
+eta_kanon = eta_kanon_raw * 100;
+eta_cr    = eta_cr_raw * 100;
+
+RMSE_base_val = rmse_base_m;
+
 RMSE_LO    = rmse_lo_m    * ones(1, length(epsilon_vals));
 RMSE_KAnon = rmse_kanon_m * ones(1, length(epsilon_vals));
 RMSE_CR    = rmse_cr_m    * ones(1, length(epsilon_vals));
 RMSE_base  = RMSE_base_val * ones(1, length(epsilon_vals));
 
-% No-DP baseline eta
-eta_no_noise = min(99, eta_cal(end) + 1.5);
+% محاسبه $\eta$ بدون نویز مستقیماً از شبیه‌سازی
+[~, eta_no_noise_sim, ~] = run_mc(inf, Delta_f, N_SU, N_PU, P_max, area_size, num_runs, gamma);
+eta_no_noise = eta_no_noise_sim * 100;
 
-fprintf('Calibration: eta at eps=1 -> %.2f%% (target: 92%%)\n\n', eta_cal(idx1));
+fprintf('Actual simulated eta at eps=1: %.2f%%\n\n', eta_cal(idx1));
 
 %% ============================================================
 %  FIGURE 2: MAE vs. Privacy Budget epsilon
@@ -239,10 +119,14 @@ plot(epsilon_vals, eta_cal, '-o', 'LineWidth',2.0, ...
 hold on;
 yline(eta_no_noise, '--k', 'LineWidth',1.5, ...
     'DisplayName',sprintf('Baseline (\\epsilon=\\infty): %.1f%%', eta_no_noise));
-plot(1.0, 92, 'rs', 'MarkerSize',11, 'LineWidth',2, ...
-    'DisplayName','\epsilon=1: \eta=92% (from paper)');
-yline(92, ':r', 'LineWidth',1.2, 'HandleVisibility','off');
-text(7.5, 93.2, '92%', 'Color','r','FontSize',10,'FontName','Times New Roman');
+
+% استفاده از مقدار شبیه‌سازی شده به جای 92
+val_eta_eps1 = eta_cal(idx1);
+plot(1.0, val_eta_eps1, 'rs', 'MarkerSize',11, 'LineWidth',2, ...
+    'DisplayName',sprintf('\\epsilon=1: \\eta=%.1f%%', val_eta_eps1));
+yline(val_eta_eps1, ':r', 'LineWidth',1.2, 'HandleVisibility','off');
+text(7.5, val_eta_eps1 + 1.2, sprintf('%.1f%%', val_eta_eps1), ...
+    'Color','r','FontSize',10,'FontName','Times New Roman');
 
 xlabel('Privacy Budget \epsilon','FontSize',12,'FontName','Times New Roman');
 ylabel('Spectrum Utilization Efficiency \eta (%)','FontSize',12,'FontName','Times New Roman');
@@ -352,7 +236,7 @@ for sc = 1:3
     % Simulate eta for adaptive epsilon per region
     eta_per_region = zeros(1, num_regions);
     for reg = 1:num_regions
-        [~, eta_reg, ~] = run_mc(eps_dyn_sc(reg), Delta_f, ...N_SU, N_PU, P_max, area_size, 100, gamma);
+        [~, eta_reg, ~] = run_mc(eps_dyn_sc(reg), Delta_f, N_SU, N_PU, P_max, area_size, 100, gamma);
         eta_per_region(reg) = eta_reg;
     end
     eta_adaptive_all(sc) = mean(eta_per_region) * scale_eta * 100;
@@ -390,25 +274,27 @@ fprintf('Figure 5 saved.\n');
 %% ============================================================
 figure('Units','inches','Position',[11.5 0.5 6.0 4.5],'Name','Fig7: Baseline Bar Comparison');
 
-% Compute all metrics from simulation results
-% MAE: normalized so DP-MTP(eps=1)=1
+% MAE: نرمال‌سازی نسبت به DP-MTP (تغییری ندارد، مقادیر واقعی هستند)
 mae_dpmtp   = MAE_simulated(idx1);
 MAE_norm    = [0, mae_lo/mae_dpmtp, mae_kanon/mae_dpmtp, mae_cr/mae_dpmtp, 1.0];
 
-% RMSE_attack: normalized so DP-MTP(eps=1)=1
+% RMSE_attack: نرمال‌سازی نسبت به DP-MTP
 rmse_dpmtp_ref = RMSE_DPMTP_m(idx1);
 RMSE_norm   = [RMSE_base_val/rmse_dpmtp_ref, rmse_lo_m/rmse_dpmtp_ref, ...
                rmse_kanon_m/rmse_dpmtp_ref, rmse_cr_m/rmse_dpmtp_ref, 1.0];
 
-% eta: normalized so no-noise=1
-eta_lo    = eta_no_noise * 0.95;   % LO has small overhead
-eta_kanon = eta_cal(idx1);         % K-Anon similar to DP-MTP
-eta_cr    = eta_no_noise * 0.93;   % CR moderate overhead
-eta_norm  = [eta_no_noise, eta_lo, eta_kanon, eta_cr, eta_cal(idx1)] / eta_no_noise;
+% eta: نرمال‌سازی بر اساس مقادیر واقعی شبیه‌سازی شده
+eta_norm = zeros(1,5);
+eta_norm(1) = 1.0; % No protection (Baseline)
+eta_norm(2) = eta_lo / eta_no_noise;
+eta_norm(3) = eta_kanon / eta_no_noise;
+eta_norm(4) = eta_cr / eta_no_noise;
+eta_norm(5) = eta_cal(idx1) / eta_no_noise;
 
-% Overhead: simulate relative computation time (normalized)
-% DP-MTP: O(N), LO: O(N), K-Anon: O(N^2), CR: O(N), No-prot: O(1)
-OH_norm = [0, 0.10, 0.25, 0.15, 0.20];
+% Overhead: محاسبه فرمولی بر اساس پیچیدگی زمانی (بدون هاردکد مطلق)
+% N = N_SU. فرض: O(1)->1, O(N)->N, O(N^2)->N^2. سپس نرمال‌سازی.
+comp_cost = [1, N_SU, N_SU^2, N_SU, N_SU];
+OH_norm = comp_cost / max(comp_cost); % نرمال شده بین 0 تا 1
 
 bar_matrix = [MAE_norm; RMSE_norm; eta_norm; OH_norm]';
 
