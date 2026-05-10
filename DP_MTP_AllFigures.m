@@ -44,26 +44,16 @@ fprintf('Parameters loaded from Section 6.1\n\n');
 MAE_theoretical = Delta_f ./ epsilon_vals;
 
 fprintf('Running main Monte Carlo simulations...\n');
-[MAE_simulated, eta_simulated, RMSE_DPMTP] = run_mc(epsilon_vals, Delta_f, N_SU, N_PU, P_max, area_size, num_runs, gamma);
+% خروجی RMSE حالا مستقیماً به متر است
+[MAE_simulated, eta_simulated, RMSE_DPMTP_m] = run_mc(epsilon_vals, Delta_f, N_SU, N_PU, P_max, area_size, num_runs, gamma);
 
-% استفاده از مقادیر واقعی شبیه‌سازی بدون دستکاری دستی (Hardcode)
-eta_cal = eta_simulated * 100;  % درصد واقعی از شبیه‌سازی
+eta_cal = eta_simulated * 100;  % درصد واقعی
 idx1    = find(epsilon_vals == 1.0);
 
-% تبدیل RMSE به متر بر اساس مدل Path-loss
-mean_MTP_ref = P_max * exp(-area_size/4 / gamma);
-RMSE_DPMTP_m = RMSE_DPMTP * gamma ./ mean_MTP_ref;
-
 fprintf('Running baseline simulations...\n');
-% خروجی‌ها ابتدا به صورت خام (توان) دریافت می‌شوند
-[rmse_lo_raw, rmse_kanon_raw, rmse_cr_raw, rmse_base_raw, mae_lo, mae_kanon, mae_cr, eta_lo_raw, eta_kanon_raw, eta_cr_raw] = ...
+% خروجی‌های RMSE حالا مستقیماً به متر هستند
+[rmse_lo_m, rmse_kanon_m, rmse_cr_m, rmse_base_m, mae_lo, mae_kanon, mae_cr, eta_lo_raw, eta_kanon_raw, eta_cr_raw] = ...
     run_baselines(N_SU, N_PU, P_max, area_size, num_runs, gamma, Delta_f);
-
-% تبدیل خطای توان روش‌های پایه به خطای مکانی (متر)
-rmse_lo_m    = rmse_lo_raw    * gamma / mean_MTP_ref;
-rmse_kanon_m = rmse_kanon_raw * gamma / mean_MTP_ref;
-rmse_cr_m    = rmse_cr_raw    * gamma / mean_MTP_ref;
-rmse_base_m  = rmse_base_raw  * gamma / mean_MTP_ref;
 
 eta_lo    = eta_lo_raw * 100;
 eta_kanon = eta_kanon_raw * 100;
@@ -76,7 +66,7 @@ RMSE_KAnon = rmse_kanon_m * ones(1, length(epsilon_vals));
 RMSE_CR    = rmse_cr_m    * ones(1, length(epsilon_vals));
 RMSE_base  = RMSE_base_val * ones(1, length(epsilon_vals));
 
-% محاسبه $\eta$ بدون نویز مستقیماً از شبیه‌سازی
+% محاسبه $\eta$ بدون نویز
 [~, eta_no_noise_sim, ~] = run_mc(inf, Delta_f, N_SU, N_PU, P_max, area_size, num_runs, gamma);
 eta_no_noise = eta_no_noise_sim * 100;
 
