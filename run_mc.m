@@ -50,8 +50,7 @@ function [mae_val, eta_val, rmse_attack_m] = run_mc(epsilon_vals_in, Delta_f_in,
             connected_true = MTP_true >= P_th;
             connected_DP   = MTP_DP >= P_th;
             if sum(connected_true) > 0
-                eta_runs(r) = sum(connected_DP) / sum(connected_true);
-            else
+                eta_runs(r) = sum(connected_DP & connected_true) / sum(connected_true);            else
                 eta_runs(r) = 1;
             end
 
