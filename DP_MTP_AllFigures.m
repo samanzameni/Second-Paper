@@ -386,14 +386,17 @@ fprintf('========================================\n\n');
 %  TABLE 1: Trade-off Analysis (Section 6.2)
 %% ============================================================
 fprintf('--- Table 1: Trade-off Analysis ---\n');
-fprintf('%-10s | %-12s | %-18s | %-14s\n', ...
-    'epsilon', 'MAE (dBm)', 'Throughput Loss (%)', 'Power Error (dBm)');
-fprintf('%s\n', repmat('-',1,62));
+fprintf('%-10s | %-20s | %-18s | %-14s\n', ...
+    'epsilon', 'Location RMSE (m)', 'Throughput Loss (%)', 'Power Error (dBm)');
+fprintf('%s\n', repmat('-',1,72));
+
 for ei = 1:length(epsilon_vals)
     throughput_loss = 100 - eta_cal(ei);
     power_err      = MAE_simulated(ei);
-    fprintf('%-10.1f | %-12.4f | %-18.2f | %-14.4f\n', ...
-        epsilon_vals(ei), MAE_simulated(ei), throughput_loss, power_err);
+    loc_rmse       = RMSE_DPMTP_m(ei);
+
+    fprintf('%-10.1f | %-20.2f | %-18.2f | %-14.4f\n', ...
+        epsilon_vals(ei), loc_rmse, throughput_loss, power_err);
 end
 fprintf('\n');
 
