@@ -37,7 +37,7 @@ sigma_m)
     % PARTICLE FILTER PARAMETERS
     %% ========================================================
 
-    N_particles = 400;
+    N_particles = 1000;
 
     d_max = area_size * sqrt(2);
 
@@ -52,16 +52,16 @@ sigma_m)
     for ei = 1:n_eps
 
 
-        eps = epsilon_vals_in(ei);
+        eps_val = epsilon_vals_in(ei);
 
 
-        if isinf(eps)
+        if isinf(eps_val)
 
             b = 0;
 
         else
 
-            b = Delta_f_in / eps;
+            b = Delta_f_in / eps_val;
 
         end
 
@@ -257,198 +257,120 @@ sigma_m)
 
 
 
-            %% ===============================================
-            % PARTICLE FILTER ATTACK
-            %
-            % Observation:
-            %
-            % P_DP = P_true + Gaussian + Laplace
-            %
-            % The likelihood is modeled using the
-            % Normal-Laplace distribution.
-            %% ===============================================
-
-
-            d_est = zeros(N_SU,1);
-
-
-
-            for i = 1:N_SU
-
-
-
-                %% ============================================
-                % 1. PARTICLE INITIALIZATION
-                %
-                % Uniform prior over possible distance
-                %% ============================================
-
-
-                d_particles = ...
-                rand(N_particles,1) * d_max;
-
-
-
-                %% ============================================
-                % 2. PREDICTED TRUE POWER
-                %
-                % P_pred = P_max exp(-d/gamma)
-                %% ============================================
-
-
-                p_pred = ...
-                P_max_in * ...
-                exp( ...
-                -d_particles / gamma_val);
-
-
-
-                %% ============================================
-                % OBSERVATION ERROR
-                %% ============================================
-
-
-                z = ...
-                MTP_DP(i) - p_pred;
-
-
-
-                %% ============================================
-                % 3. LIKELIHOOD
-                %% ============================================
-
-
-                if b == 0
-
-
-                    % ========================================
-                    % ONLY GAUSSIAN MEASUREMENT NOISE
-                    %
-                    % P_DP = P_obs
-                    % ========================================
-
-
-                    sigma_eff = max(sigma_m,1e-6);
-
-
-                    weights = ...
-                    exp( ...
-                    -0.5 * ...
-                    (z ./ sigma_eff).^2);
-
-
-
-                else
-
-
-                    % ========================================
-                    % NORMAL-LAPLACE LIKELIHOOD
-                    %
-                    % Z = Gaussian(0,sigma_m^2)
-                    %     + Laplace(0,b)
-                    %
-                    % Closed-form PDF
-                    % ========================================
-
-
-                    sigma_eff = ...
-                    max(sigma_m,1e-6);
-
-
-
-                    term1 = ...
-                    exp( ...
-                    -z ./ b);
-
-
-                    term2 = ...
-                    exp( ...
-                    z ./ b);
-
-
-
-                    Phi1 = ...
-                    0.5 * ...
-                    ( ...
-                    1 + erf( ...
-                    (z./sigma_eff - ...
-                    sigma_eff/b) / sqrt(2)));
-
-
-                    Phi2 = ...
-                    0.5 * ...
-                    ( ...
-                    1 + erf( ...
-                    (-z./sigma_eff - ...
-                    sigma_eff/b) / sqrt(2)));
-
-
-
-                    weights = ...
-                    (1/(2*b)) * ...
-                    exp( ...
-                    sigma_eff^2 / ...
-                    (2*b^2)) .* ...
-                    ( ...
-                    term1 .* Phi1 + ...
-                    term2 .* Phi2);
-
-
-
-                    % ========================================
-                    % Numerical stability
-                    % ========================================
-
-
-                    weights(~isfinite(weights)) = 0;
-
-                    weights(weights < 0) = 0;
-
-
-                end
-
-
-
-                %% ============================================
-                % 4. NORMALIZE PARTICLE WEIGHTS
-                %% ============================================
-
-
-                sum_w = sum(weights);
-
-
-                if sum_w < 1e-300 || ...
-                   any(isnan(weights)) || ...
-                   any(isinf(weights))
-
-
-                    weights = ...
-                    ones(N_particles,1) / N_particles;
-
-
-                else
-
-
-                    weights = weights / sum_w;
-
-
-                end
-
-
-
-                %% ============================================
-                % 5. ESTIMATED DISTANCE
-                %
-                % Weighted posterior mean
-                %% ============================================
-
-
-                d_est(i) = ...
-                sum( ...
-                weights .* d_particles);
-
-
+     %% ===============================================
+% PARTICLE FILTER ATTACK (Improved)
+%
+% - Analytic proposal from inverse path-loss
+% - Mixture proposal (analytic + uniform)
+% - Residual resampling
+% - Bias correction for pure Gaussian case
+%% ===============================================
+d_est = zeros(N_SU,1);
+
+alpha_mix   = 0.85;          % وزن پیشنهاد تحلیلی
+
+for i = 1:N_SU
+    P_obs = MTP_DP(i);
+    
+    % -------------------------------------------------
+    % 1. پیشنهاد تحلیلی (معکوس مدل مسیر)
+    % -------------------------------------------------
+    P_clip = max(min(P_obs, P_max_in*0.999), P_max_in*1e-6);
+    d_anal = -gamma_val * log(P_clip / P_max_in);
+    d_anal = max(0, min(d_max, d_anal));
+    
+    % انحراف معیار تقریبی فاصله ناشی از نویز اندازه‌گیری
+    sigma_d = max(sigma_m,1e-6) * gamma_val / max(P_clip, 1e-3);
+    sigma_d = max(sigma_d, 2);   % کف برای جلوگیری از فروپاشی
+    
+    % -------------------------------------------------
+    % 2. تولید ذرات با ترکیب پیشنهاد تحلیلی + یکنواخت
+    % -------------------------------------------------
+    n_anal = round(alpha_mix * N_particles);
+    n_unif = N_particles - n_anal;
+    
+    d_particles = [ ...
+        d_anal + sigma_d * randn(n_anal,1);   % پیشنهاد تحلیلی
+        rand(n_unif,1) * d_max ];             % پیشنهاد یکنواخت (ایمنی)
+    
+    d_particles = max(0, min(d_max, d_particles));
+    
+    % -------------------------------------------------
+    % 3. قدرت پیش‌بینی‌شده و باقی‌مانده
+    % -------------------------------------------------
+    p_pred = P_max_in * exp(-d_particles / gamma_val);
+    z      = P_obs - p_pred;
+    
+    % -------------------------------------------------
+    % 4. وزن‌های likelihood
+    % -------------------------------------------------
+    if b == 0
+        % فقط نویز گاوسی
+        sigma_eff = max(sigma_m, 1e-6);
+        weights = exp(-0.5 * (z ./ sigma_eff).^2);
+    else
+        % چگالی Normal-Laplace بسته
+        sigma_eff = max(sigma_m, 1e-6);
+        term1 = exp(-z ./ b);
+        term2 = exp( z ./ b);
+        Phi1  = 0.5 * (1 + erf( ( z./sigma_eff - sigma_eff/b ) / sqrt(2) ));
+        Phi2  = 0.5 * (1 + erf( (-z./sigma_eff - sigma_eff/b ) / sqrt(2) ));
+        weights = (1/(2*b)) * exp(sigma_eff^2 / (2*b^2)) .* ...
+                  (term1 .* Phi1 + term2 .* Phi2);
+        weights(~isfinite(weights) | weights < 0) = 0;
+    end
+    
+    % -------------------------------------------------
+    % 5. نرمال‌سازی + Residual Resampling
+    % -------------------------------------------------
+    sum_w = sum(weights);
+    if sum_w < 1e-300 || any(~isfinite(weights))
+        weights = ones(N_particles,1) / N_particles;
+    else
+        weights = weights / sum_w;
+    end
+    
+    % Effective Sample Size
+    ess = 1 / sum(weights.^2);
+    if ess < 0.4 * N_particles
+        % Residual resampling
+        N_res = floor(N_particles * weights);
+        residual = weights - N_res / N_particles;
+        residual = residual / sum(residual + eps);
+        
+        idx = [];
+        for k = 1:N_particles
+            if N_res(k) > 0
+                idx = [idx; repmat(k, N_res(k), 1)];
             end
+        end
+        n_remain = N_particles - length(idx);
+        if n_remain > 0
+            cdf = cumsum(residual);
+            u = rand(n_remain,1);
+            extra = zeros(n_remain,1);
+            for uu = 1:n_remain
+                extra(uu) = find(cdf >= u(uu), 1, 'first');
+            end
+            idx = [idx; extra];
+        end
+        d_particles = d_particles(idx);
+        weights = ones(N_particles,1) / N_particles;
+    end
+    
+    % -------------------------------------------------
+    % 6. تخمین نهایی (میانگین وزن‌دار) + تصحیح بایاس
+    % -------------------------------------------------
+    d_mean = sum(weights .* d_particles);
+    
+    if b == 0
+        % تصحیح بایاس مرتبه اول برای تبدیل لگاریتمی
+        bias = (sigma_m^2 * gamma_val) / (2 * max(P_clip,1e-3)^2);
+        d_mean = d_mean - bias;
+    end
+    
+    d_est(i) = max(0, min(d_max, d_mean));
+end
 
 
 
