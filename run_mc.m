@@ -8,7 +8,7 @@
 % ============================================================
 
 
-function [mae_val,eta_val,rmse_attack_m] = ...
+function [mae_noise,eta_val,rmse_attack_m, all_errors, mae_total] = ...
 run_mc( ...
 epsilon_vals_in, ...
 Delta_f_in, ...
@@ -23,15 +23,15 @@ sigma_m)
 
 
     n_eps = length(epsilon_vals_in);
-
-
-    mae_val = zeros(1,n_eps);
-
+    mae_noise = zeros(1,n_eps);    
+    mae_total = zeros(1,n_eps);    
     eta_val = zeros(1,n_eps);
-
     rmse_attack_m = zeros(1,n_eps);
+    all_errors = cell(1, n_eps);
 
-
+    for ei = 1:n_eps
+        all_errors{ei} = [];
+    end
 
     %% ========================================================
     % PARTICLE FILTER PARAMETERS
@@ -67,10 +67,9 @@ sigma_m)
 
 
 
-        mae_runs = zeros(num_runs,1);
-
+        mae_noise_runs = zeros(num_runs,1);  
+        mae_total_runs = zeros(num_runs,1);   
         eta_runs = zeros(num_runs,1);
-
         rmse_runs = zeros(num_runs,1);
 
 
@@ -221,11 +220,12 @@ sigma_m)
             %% ===============================================
 
 
-            mae_runs(r) = ...
-            mean( ...
-            abs( ...
-            MTP_DP_unclipped - MTP_obs));
+            mae_noise_runs(r) = mean(abs(MTP_DP_unclipped - MTP_obs));
+            
+            mae_total_runs(r) = mean(abs(MTP_DP_unclipped - MTP_true));
 
+            errors_this_run = abs(MTP_DP_unclipped - MTP_obs);   % خطای واقعی
+            all_errors{ei} = [all_errors{ei}; errors_this_run];   % جمع کردن
 
             %% ===============================================
             % CLIP FINAL DP POWER
@@ -265,8 +265,8 @@ sigma_m)
 % - Residual resampling
 % - Bias correction for pure Gaussian case
 %% ===============================================
-d_est = particle_attack(MTP_DP, P_max_in, gamma_val, sigma_m, b, N_particles, d_max);
 
+d_est = particle_attack(MTP_DP, P_max_in, gamma_val, sigma_m, b, N_particles, d_max);
 
             %% ===============================================
             % ATTACK RMSE
@@ -279,16 +279,14 @@ d_est = particle_attack(MTP_DP, P_max_in, gamma_val, sigma_m, b, N_particles, d_
             (d_est - dists_true_min).^2));
 
 
-
-
-
-        %% ====================================================
+    end
+  %% ====================================================
         % AVERAGE OVER MONTE CARLO RUNS
         %% ====================================================
 
 
-        mae_val(ei) = ...
-        mean(mae_runs);
+        mae_noise(ei) = mean(mae_noise_runs);    
+        mae_total(ei) = mean(mae_total_runs);  
 
 
         eta_val(ei) = ...
@@ -297,9 +295,6 @@ d_est = particle_attack(MTP_DP, P_max_in, gamma_val, sigma_m, b, N_particles, d_
 
         rmse_attack_m(ei) = ...
         mean(rmse_runs);
-
-
-    end
 
 
 end

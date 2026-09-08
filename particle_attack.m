@@ -126,5 +126,5 @@ function y = log_normcdf(x)
 
     % برای x خیلی منفی، از تقریب مجانبی استفاده کن تا log(0) نشه
     xn = x(idx_neg);
-    y(idx_neg) = -0.5*xn.^2 - log(-xn*sqrt(2*pi)) - log(1 - 1./xn.^2);
+    y(idx_neg) = -0.5*xn.^2 - log(-xn*sqrt(2*pi)) + log(1 - 1./xn.^2);
 end

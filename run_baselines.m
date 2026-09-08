@@ -18,6 +18,7 @@ rmse_base_m, ...
 mae_lo, ...
 mae_kanon, ...
 mae_cr, ...
+mae_base, ...
 eta_lo, ...
 eta_kanon, ...
 eta_cr] = ...
@@ -53,6 +54,7 @@ sigma_m)
 
     mae_cr_r = zeros(num_runs,1);
 
+    mae_base_r = zeros(num_runs,1);
 
     eta_lo_r = zeros(num_runs,1);
 
@@ -167,7 +169,7 @@ sigma_m)
         mean( ...
         (d_est_base - dists_true_min).^2));
 
-
+        mae_base_r(r) = mean(abs(MTP_obs - MTP_true));
 
         %% ====================================================
         % 2. LOCATION OBFUSCATION
@@ -232,7 +234,7 @@ sigma_m)
         mae_lo_r(r) = ...
         mean( ...
         abs( ...
-        MTP_lo_clipped - MTP_obs));
+        MTP_lo_clipped - MTP_true));
 
 
         eta_lo_r(r) = ...
@@ -272,7 +274,7 @@ d_est_kanon = particle_attack(MTP_kanon_clipped, P_max, gamma_val, sigma_m, 0, N
 
 rmse_kanon_r(r) = sqrt(mean((d_est_kanon - dists_true_min).^2));
 
-mae_kanon_r(r) = mean(abs(MTP_kanon_clipped - MTP_obs));
+mae_kanon_r(r) = mean(abs(MTP_kanon_clipped - MTP_true));
 
 eta_kanon_r(r) = sum(MTP_kanon_clipped >= (MTP_true - margin_dB)) / N_SU;
 
@@ -306,7 +308,7 @@ d_est_cr = particle_attack(MTP_cr_clipped, P_max, gamma_val, sigma_m, 0, N_parti
 
 rmse_cr_r(r) = sqrt(mean((d_est_cr - dists_true_min).^2));
 
-mae_cr_r(r) = mean(abs(MTP_cr_clipped - MTP_obs));
+mae_cr_r(r) = mean(abs(MTP_cr_clipped - MTP_true));
 
 eta_cr_r(r) = sum(MTP_cr_clipped >= (MTP_true - margin_dB)) / N_SU;
 
@@ -335,17 +337,10 @@ eta_cr_r(r) = sum(MTP_cr_clipped >= (MTP_true - margin_dB)) / N_SU;
 
 
 
-    mae_lo = ...
-    mean(mae_lo_r);
-
-
-    mae_kanon = ...
-    mean(mae_kanon_r);
-
-
-    mae_cr = ...
-    mean(mae_cr_r);
-
+    mae_lo = mean(mae_lo_r);
+    mae_kanon = mean(mae_kanon_r);
+    mae_cr = mean(mae_cr_r);
+    mae_base = mean(mae_base_r);
 
 
     eta_lo = ...
@@ -361,3 +356,4 @@ eta_cr_r(r) = sum(MTP_cr_clipped >= (MTP_true - margin_dB)) / N_SU;
 
 
 end
+
