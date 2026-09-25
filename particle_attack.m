@@ -1,3 +1,12 @@
+
+%% ============================================================
+% =============================================================
+%
+%  FUNCTION 3:
+%  PARTICLE FILTER ATTACK
+%
+% =============================================================
+% ============================================================
 function d_est = particle_attack(P_dp_vec, P_max_in, gamma_val, sigma_m, b, N_particles, d_max)
 % Improved particle / importance-sampling attack
 % - Analytic proposal from the inverse path-loss model
@@ -10,14 +19,14 @@ d_est = zeros(N,1);
 
 % Safety & defaults
 sigma_eff = max(sigma_m, 1e-6);
-N_part    = max(N_particles, 1000);   % حداقل ۱۰۰۰ ذره
-alpha     = 0.85;                     % وزن پیشنهاد تحلیلی
+N_part    = max(N_particles, 1000);   % at least 1000 particles
+alpha     = 0.85;                     % weight of the analytic proposal
 
 for i = 1:N
     P_obs = P_dp_vec(i);
 
     % -------------------------------------------------
-    % 1. پیشنهاد تحلیلی
+    % 1. Analytic proposal
     % -------------------------------------------------
     P_clip = max(min(P_obs, P_max_in*0.999), P_max_in*1e-6);
     d_anal = -gamma_val * log(P_clip / P_max_in);
@@ -27,7 +36,7 @@ for i = 1:N
     sigma_d = max(sigma_d, 2);
 
     % -------------------------------------------------
-    % 2. تولید ذرات (مخلوط)
+    % 2. Generate particles (mixture)
     % -------------------------------------------------
     n_anal = round(alpha * N_part);
     n_unif = N_part - n_anal;
@@ -38,13 +47,13 @@ for i = 1:N
     d_particles = max(0, min(d_max, d_particles));
 
     % -------------------------------------------------
-    % 3. قدرت پیش‌بینی‌شده و باقی‌مانده
+    % 3. Predicted power and residual
     % -------------------------------------------------
     p_pred = P_max_in * exp(-d_particles / gamma_val);
     z      = P_obs - p_pred;
 
     % -------------------------------------------------
-    % 4. وزن likelihood
+    % 4. Likelihood weight
     % -------------------------------------------------
     if b == 0
         log_w = -0.5*(z./sigma_eff).^2;
@@ -64,7 +73,7 @@ for i = 1:N
     weights(~isfinite(weights) | weights < 0) = 0;
 
     % -------------------------------------------------
-    % 5. نرمال‌سازی + Residual Resampling
+    % 5. Normalization + Residual Resampling
     % -------------------------------------------------
     sw = sum(weights);
     if sw < 1e-300 || any(~isfinite(weights))
@@ -102,7 +111,7 @@ for i = 1:N
     end
 
     % -------------------------------------------------
-    % 6. تخمین نهایی + تصحیح بایاس
+    % 6. Final estimate + bias correction
     % -------------------------------------------------
     d_mean = sum(weights .* d_particles);
     if b == 0
@@ -114,17 +123,15 @@ end
 end
 
 % -------------------------------------------------
-% تابع کمکی (داخل همان فایل)
+% Helper function
 % -------------------------------------------------
 function y = log_normcdf(x)
-% log(Phi(x)) با پایداری عددی برای x خیلی منفی
     y = zeros(size(x));
     idx_pos = x > -20;
     idx_neg = ~idx_pos;
 
     y(idx_pos) = log(0.5*(1+erf(x(idx_pos)/sqrt(2))));
 
-    % برای x خیلی منفی، از تقریب مجانبی استفاده کن تا log(0) نشه
     xn = x(idx_neg);
     y(idx_neg) = -0.5*xn.^2 - log(-xn*sqrt(2*pi)) + log(1 - 1./xn.^2);
 end

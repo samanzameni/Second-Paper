@@ -258,7 +258,7 @@ sigma_m)
 
 
      %% ===============================================
-% PARTICLE FILTER ATTACK (Improved)
+% PARTICLE FILTER ATTACK
 %
 % - Analytic proposal from inverse path-loss
 % - Mixture proposal (analytic + uniform)

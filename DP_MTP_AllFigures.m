@@ -206,17 +206,16 @@ hold on;
 
 for ei = 1:length(eps_cdf)
     
-    % پیدا کردن اندیس مربوط به این epsilon در epsilon_vals
     idx = find(abs(epsilon_vals - eps_cdf(ei)) < 1e-6);
     
     if isempty(idx)
         continue;
     end
     
-    errors = all_errors{idx};          % خطاهای واقعی شبیه‌سازی
-    errors = errors(errors <= 20);     % فقط تا ۲۰ دسی‌بل (برای زیبایی شکل)
+    errors = all_errors{idx};          
+    errors = errors(errors <= 20);     
     
-    % محاسبه Empirical CDF
+    % Empirical CDF
     [f, x] = ecdf(errors);
     
     plot(x, f, ...

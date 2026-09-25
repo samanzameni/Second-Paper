@@ -244,16 +244,16 @@ sigma_m)
 
 
 
-      %% ====================================================
-% 3. K-ANONYMITY 
-%% ====================================================
+    %% ====================================================
+    % 3. K-ANONYMITY 
+    %% ====================================================
 
-dists_su = pdist2(su_locs, su_locs);
-dists_su(logical(eye(N_SU))) = inf;
+    dists_su = pdist2(su_locs, su_locs);
+    dists_su(logical(eye(N_SU))) = inf;
 
-MTP_kanon = zeros(N_SU,1);
+    MTP_kanon = zeros(N_SU,1);
 
-for i = 1:N_SU
+    for i = 1:N_SU
 
     [~,idx_k] = sort(dists_su(i,:));
     neighbors = idx_k(1:k_anon-1);
@@ -266,30 +266,30 @@ for i = 1:N_SU
 
     MTP_kanon(i) = MTP_true_centroid + sigma_m * randn();
 
-end
+    end
 
-MTP_kanon_clipped = max(0, min(P_max, MTP_kanon));
+    MTP_kanon_clipped = max(0, min(P_max, MTP_kanon));
 
-d_est_kanon = particle_attack(MTP_kanon_clipped, P_max, gamma_val, sigma_m, 0, N_particles, d_max);
+    d_est_kanon = particle_attack(MTP_kanon_clipped, P_max, gamma_val, sigma_m, 0, N_particles, d_max);
 
-rmse_kanon_r(r) = sqrt(mean((d_est_kanon - dists_true_min).^2));
+    rmse_kanon_r(r) = sqrt(mean((d_est_kanon - dists_true_min).^2));
 
-mae_kanon_r(r) = mean(abs(MTP_kanon_clipped - MTP_true));
+    mae_kanon_r(r) = mean(abs(MTP_kanon_clipped - MTP_true));
 
-eta_kanon_r(r) = sum(MTP_kanon_clipped >= (MTP_true - margin_dB)) / N_SU;
+    eta_kanon_r(r) = sum(MTP_kanon_clipped >= (MTP_true - margin_dB)) / N_SU;
 
 
 
-       %% ====================================================
-% 4. CLOAKING REGIONS (Location Generalization — Fixed)
-%% ====================================================
+    %% ====================================================
+    % 4. CLOAKING REGIONS (Location Generalization — Fixed)
+    %% ====================================================
 
-cell_x = floor(su_locs(:,1) / cr_size);
-cell_y = floor(su_locs(:,2) / cr_size);
+    cell_x = floor(su_locs(:,1) / cr_size);
+    cell_y = floor(su_locs(:,2) / cr_size);
 
-MTP_cr = zeros(N_SU,1);
+    MTP_cr = zeros(N_SU,1);
 
-for i = 1:N_SU
+    for i = 1:N_SU
 
     same_cell = (cell_x == cell_x(i)) & (cell_y == cell_y(i));
 
@@ -300,17 +300,17 @@ for i = 1:N_SU
 
     MTP_cr(i) = MTP_true_centroid + sigma_m * randn();
 
-end
+    end
 
-MTP_cr_clipped = max(0, min(P_max, MTP_cr));
+    MTP_cr_clipped = max(0, min(P_max, MTP_cr));
 
-d_est_cr = particle_attack(MTP_cr_clipped, P_max, gamma_val, sigma_m, 0, N_particles, d_max);
+    d_est_cr = particle_attack(MTP_cr_clipped, P_max, gamma_val, sigma_m, 0, N_particles, d_max);
 
-rmse_cr_r(r) = sqrt(mean((d_est_cr - dists_true_min).^2));
+    rmse_cr_r(r) = sqrt(mean((d_est_cr - dists_true_min).^2));
 
-mae_cr_r(r) = mean(abs(MTP_cr_clipped - MTP_true));
+    mae_cr_r(r) = mean(abs(MTP_cr_clipped - MTP_true));
 
-eta_cr_r(r) = sum(MTP_cr_clipped >= (MTP_true - margin_dB)) / N_SU;
+    eta_cr_r(r) = sum(MTP_cr_clipped >= (MTP_true - margin_dB)) / N_SU;
 
     end
 
