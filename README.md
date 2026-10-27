@@ -1,6 +1,6 @@
 # Response-Level Differential Privacy for Geo-Location Databases: Power Cost, Coalition Limits and Comparison with Input Perturbation
 
-**Saman Zameni**
+**Saman Zameni, MohammadReza Taheri, Hadi Pouladi**
 **Status:** Submitted to *Ad Hoc Networks*
 
 > [!IMPORTANT]
@@ -10,7 +10,7 @@
 
 Maximum transmission power (MTP) limits returned by geo-location databases (GDBs) depend on, and can reveal, the positions of protected primary users (PUs). We study DP-MTP, a response-level mechanism that adds Laplace noise calibrated to a Lipschitz bound of the MTP ceiling, subtracts a public backoff and clips. It is *ε*-differentially private for PU displacements of up to *R* metres and bounds the violation probability of every fresh release; before clipping, its power loss is at most 8.5% above a lower bound for additive, translation-invariant metric-private releases at a 1% violation target. Van Trees bounds show coalition accuracy grows with the square root of the number of answers; a public per-cell ledger with cached releases bounds each PU’s loss per epoch for any number of colluding devices. In synthetic experiments (*R* = 1 m, *ε* = 1), one response raises the distance error of informative queries from zero to 13.0 m at 91.5% retained power, yet adaptive coalitions localize a PU to 0.28 m after 200 queries and defeat cloaking, sybil-assisted *k*-anonymity and coarsening. With the ledger, tested attacks stay near 2 m within one epoch but reach 0.43 m after eight. Perturbing each registered PU position once per epoch instead certifies an error of at least 2.0 m for every coalition (2.4 m for the Bayes-optimal one) with a per-epoch budget of 1 instead of 45, retaining 95% of the power. For static incumbents, registration-level perturbation is preferable; response-level noise may pay off when few responses depend on a PU between registration updates, a hypothesis left for testing.
 
-**Keywords:** Differential Privacy, Geo-location Database, Cognitive Radio, Spectrum Sharing, Location Privacy, Maximum Transmission Power
+**Keywords:** Differential privacy, Geo-location database, Cognitive radio, Spectrum sharing, Location privacy, Metric privacy
 
 ## Repository contents
 
