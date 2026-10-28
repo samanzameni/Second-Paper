@@ -1,7 +1,7 @@
 # Response-Level Differential Privacy for Geo-Location Databases: Power Cost, Coalition Limits and Comparison with Input Perturbation
 
 **Saman Zameni, MohammadReza Taheri, Hadi Pouladi**
-**Status:** Submitted to *Ad Hoc Networks*
+**Status:** Submitted to *Computer Communications*
 
 > [!IMPORTANT]
 > **This is not the final code for this paper.** The repository contains a preliminary version of the simulation code. The final code used to produce the results reported in the paper will be released here once the paper is published.
